@@ -31,6 +31,18 @@ export function EditorPane() {
     setFrontmatter(parsed.frontmatter);
   }, [file?.id, parsed.body, parsed.frontmatter]);
 
+  useEffect(() => {
+    if (!file || parsed.body !== '---\n') return;
+    const frame = window.requestAnimationFrame(() => {
+      const view = viewRef.current;
+      if (!view) return;
+      const cursorPos = view.state.doc.length;
+      view.dispatch({ selection: { anchor: cursorPos }, scrollIntoView: true });
+      view.focus();
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [file?.id, parsed.body]);
+
   if (!file) return <div className="flex h-full items-center justify-center text-slate-400">Select a prompt file.</div>;
 
   const merged = composeMarkdown(frontmatter, body);
@@ -56,6 +68,18 @@ export function EditorPane() {
     view.dispatch({
       changes: { from: sel.from, to: sel.to, insert: replacement },
       selection: { anchor: sel.from + startOffset, head: sel.from + endOffset },
+      scrollIntoView: true,
+    });
+    view.focus();
+  };
+
+  const insertAndMoveCaretRight = (replacement: string) => {
+    const view = viewRef.current;
+    if (!view) return;
+    const sel = view.state.selection.main;
+    view.dispatch({
+      changes: { from: sel.from, to: sel.to, insert: replacement },
+      selection: { anchor: sel.from + replacement.length },
       scrollIntoView: true,
     });
     view.focus();
@@ -154,7 +178,21 @@ export function EditorPane() {
       })
       .join('\n');
 
-    view.dispatch({ changes: { from: startLine.from, to: endLine.to, insert: replaced }, scrollIntoView: true });
+    const singleCursorOnOneLine = sel.empty && startLine.number === endLine.number;
+    const alreadyAtLevel = allAtLevel;
+    const existingHeadingPrefix = startLine.text.match(/^#{1,6}\s+/)?.[0] ?? '';
+    const shift = alreadyAtLevel ? -existingHeadingPrefix.length : prefix.length - existingHeadingPrefix.length;
+    const nextPos = Math.max(startLine.from, sel.from + shift);
+
+    if (singleCursorOnOneLine) {
+      view.dispatch({
+        changes: { from: startLine.from, to: endLine.to, insert: replaced },
+        selection: { anchor: nextPos },
+        scrollIntoView: true,
+      });
+    } else {
+      view.dispatch({ changes: { from: startLine.from, to: endLine.to, insert: replaced }, scrollIntoView: true });
+    }
     view.focus();
   };
 
@@ -220,35 +258,6 @@ export function EditorPane() {
     } else {
       view.dispatch({ changes: { from: startLine.from, to: endLine.to, insert: replaced }, scrollIntoView: true });
     }
-    view.focus();
-  };
-
-
-  const toggleHorizontalRule = () => {
-    const view = viewRef.current;
-    if (!view) return;
-    const doc = view.state.doc;
-    const sel = view.state.selection.main;
-    const line = doc.lineAt(sel.from);
-
-    if (line.text.trim() === '---') {
-      let from = line.from;
-      let to = line.to;
-      if (line.to < doc.length) {
-        to = line.to + 1;
-      } else if (line.from > 1) {
-        from = line.from - 1;
-      }
-      view.dispatch({ changes: { from, to, insert: '' }, scrollIntoView: true });
-      view.focus();
-      return;
-    }
-
-    view.dispatch({
-      changes: { from: line.from, to: line.to, insert: '---' },
-      selection: { anchor: line.from + 3 },
-      scrollIntoView: true,
-    });
     view.focus();
   };
 
@@ -374,8 +383,8 @@ ${merged}`);
             <button className={btn(active.h3)} onClick={() => toggleHeading(3)}>H3</button>
             <button className={btn(active.bold)} onClick={() => toggleWrap('**', 'bold text')}>Bold</button>
             <button className={btn(active.italic)} onClick={() => toggleWrap('*', 'italic text')}>Italic</button>
-            <button className={btn(active.ol)} onClick={toggleOrderedList}><ListOrdered size={14} /></button>
             <button className={btn(active.ul)} onClick={() => toggleLinePrefix('- ')}><List size={14} /></button>
+            <button className={btn(active.ol)} onClick={toggleOrderedList}><ListOrdered size={14} /></button>
             <button className={btn(active.task)} onClick={() => toggleLinePrefix('- [ ] ')}><ListTodo size={14} /></button>
             <button className={btn(active.hr)} onClick={toggleHorizontalRule}><Minus size={14} /></button>
             <button
@@ -390,7 +399,7 @@ ${merged}`);
                 const header = `| ${Array.from({ length: cols }, (_, i) => `Col ${i + 1}`).join(' | ')} |`;
                 const sep = `| ${Array.from({ length: cols }, () => '---').join(' | ')} |`;
                 const bodyRows = Array.from({ length: rows }, () => `| ${Array.from({ length: cols }, () => ' ').join(' | ')} |`).join('\n');
-                applySelection(`${header}\n${sep}\n${bodyRows}`);
+                insertAndMoveCaretRight(`${header}\n${sep}\n${bodyRows}`);
               }}
             >
               <Table className="mr-1 inline" size={12} />Table
@@ -413,7 +422,7 @@ ${merged}`);
             />
           )}
           {(tab === 'preview' || tab === 'split') && (
-            <div className="prose max-w-none overflow-y-auto whitespace-pre-wrap border-l border-slate-200 bg-white p-5 text-sm">
+            <div className="markdown-preview max-w-none overflow-y-auto border-l border-slate-200 bg-white p-5 text-sm">
               <ReactMarkdown>{merged}</ReactMarkdown>
             </div>
           )}
@@ -446,7 +455,7 @@ ${merged}`);
               <button
                 className="rounded-md bg-slate-900 px-3 py-1.5 text-sm text-white"
                 onClick={() => {
-                  applySelection(selectedEmoji);
+                  insertAndMoveCaretRight(selectedEmoji);
                   setEmojiOpen(false);
                 }}
               >
