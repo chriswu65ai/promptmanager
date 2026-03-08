@@ -61,50 +61,9 @@ export function MetadataPanel({ frontmatter, onChange, collapsed, onToggleCollap
           />
         </label>
         <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={!!frontmatter.template}
-            onChange={(e) =>
-              onChange({
-                ...frontmatter,
-                template: e.target.checked,
-                templateType: e.target.checked ? (frontmatter.templateType ?? 'file') : undefined,
-              })
-            }
-          />
+          <input type="checkbox" checked={!!frontmatter.template} onChange={(e) => onChange({ ...frontmatter, template: e.target.checked })} />
           Template
         </label>
-        <label className="block text-xs text-slate-500">Template type
-          <select
-            className="input mt-1"
-            value={frontmatter.templateType ?? ''}
-            onChange={(e) =>
-              onChange({
-                ...frontmatter,
-                template: true,
-                templateType: (e.target.value || undefined) as 'file' | 'snippet' | undefined,
-              })
-            }
-          >
-            <option value="">None</option>
-            <option value="file">File</option>
-            <option value="snippet">Snippet</option>
-          </select>
-        </label>
-        <div className="flex gap-2">
-          <button
-            className="flex-1 rounded-md border border-slate-300 px-2 py-1.5 text-xs hover:bg-slate-50"
-            onClick={() => onChange({ ...frontmatter, template: true, templateType: frontmatter.templateType ?? 'file' })}
-          >
-            Add template type
-          </button>
-          <button
-            className="flex-1 rounded-md border border-slate-300 px-2 py-1.5 text-xs hover:bg-slate-50"
-            onClick={() => onChange({ ...frontmatter, template: false, templateType: undefined })}
-          >
-            Delete template type
-          </button>
-        </div>
       </div>
     </aside>
   );

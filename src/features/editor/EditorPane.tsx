@@ -73,8 +73,14 @@ export function EditorPane() {
         applySelection(unwrapped, 0, unwrapped.length);
         return;
       }
+
       const wrapped = `${token}${selected}${token}`;
-      applySelection(wrapped, token.length, token.length + selected.length);
+      view.dispatch({
+        changes: { from: sel.from, to: sel.to, insert: wrapped },
+        selection: { anchor: sel.from, head: sel.from + wrapped.length },
+        scrollIntoView: true,
+      });
+      view.focus();
       return;
     }
 
@@ -102,8 +108,26 @@ export function EditorPane() {
       }
     }
 
+    const wordRegex = /\S+/g;
+    let match: RegExpExecArray | null;
+    while ((match = wordRegex.exec(line.text)) !== null) {
+      const word = match[0];
+      const start = match.index;
+      const end = start + word.length;
+      if (cursorInLine >= start && cursorInLine <= end) {
+        const wrappedWord = `${token}${word}${token}`;
+        view.dispatch({
+          changes: { from: line.from + start, to: line.from + end, insert: wrappedWord },
+          selection: { anchor: line.from + start, head: line.from + start + wrappedWord.length },
+          scrollIntoView: true,
+        });
+        view.focus();
+        return;
+      }
+    }
+
     const insert = `${token}${fallback}${token}`;
-    applySelection(insert, token.length, token.length + fallback.length);
+    applySelection(insert, 0, insert.length);
   };
 
   const toggleHeading = (level: 1 | 2 | 3) => {
@@ -210,14 +234,22 @@ export function EditorPane() {
     const filename = getMarkdownFilename();
     const fileObject = new File([merged], filename, { type: 'text/markdown' });
 
-    if (navigator.share && navigator.canShare?.({ files: [fileObject] })) {
-      await navigator.share({ files: [fileObject], title: filename, text: `Sharing ${filename}` });
-      return;
+    try {
+      if (navigator.share && navigator.canShare?.({ files: [fileObject] })) {
+        await navigator.share({ files: [fileObject], title: filename, text: `Sharing ${filename}` });
+        return;
+      }
+    } catch {
+      // fall back to mail client workflow below
     }
 
+    downloadCurrent();
     const subject = encodeURIComponent(filename);
-    const bodyText = encodeURIComponent(merged);
+    const bodyText = encodeURIComponent(`I've attached ${filename}.
+
+${merged}`);
     window.location.href = `mailto:?subject=${subject}&body=${bodyText}`;
+    await dialog.alert('Share note', 'Your mail client was opened and the markdown file was downloaded. Attach the downloaded .md file to the email before sending.');
   };
 
   return (
@@ -238,12 +270,15 @@ export function EditorPane() {
                 className="rounded-md bg-slate-900 px-2 py-1 text-xs text-white disabled:opacity-50"
                 disabled={!dirty}
                 onClick={async () => {
-                  await updateFile(file.id, {
+                  const { error } = await updateFile(file.id, {
                     content: merged,
                     frontmatter_json: frontmatter,
-                    is_template: !!frontmatter.template || !!frontmatter.templateType,
-                    template_type: frontmatter.templateType ?? null,
+                    is_template: !!frontmatter.template,
                   });
+                  if (error) {
+                    await dialog.alert('Save failed', error.message);
+                    return;
+                  }
                   await refresh();
                 }}
               >
