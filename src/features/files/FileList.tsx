@@ -1,4 +1,5 @@
 import { CopyPlus, FilePlus2, Pencil, Search, Trash2 } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import { splitFrontmatter } from '../../lib/frontmatter';
 import { createFile, deleteFile, updateFile } from '../../lib/dataApi';
 import { usePromptStore } from '../../hooks/usePromptStore';
@@ -7,6 +8,8 @@ import { useDialog } from '../../components/ui/DialogProvider';
 export function FileList({ openTemplatePicker }: { openTemplatePicker: () => void }) {
   const { files, folders, selectedFolderId, selectedTag, selectedFileId, selectFile, workspace, refresh, search, setSearch } = usePromptStore();
   const dialog = useDialog();
+  const [moveFileId, setMoveFileId] = useState<string | null>(null);
+  const [moveFolderId, setMoveFolderId] = useState<string>('');
 
   const visible = files.filter((file) => {
     const folderMatch = !selectedFolderId || file.folder_id === selectedFolderId;
@@ -22,6 +25,8 @@ export function FileList({ openTemplatePicker }: { openTemplatePicker: () => voi
     const q = search.toLowerCase();
     return file.name.toLowerCase().includes(q) || file.content.toLowerCase().includes(q);
   });
+
+  const moveFile = useMemo(() => files.find((f) => f.id === moveFileId) ?? null, [files, moveFileId]);
 
   return (
     <div className="flex h-full flex-col">
@@ -79,14 +84,9 @@ export function FileList({ openTemplatePicker }: { openTemplatePicker: () => voi
                   await createFile({ workspaceId: workspace.id, folderId: folder?.id ?? null, folderPath: folder?.path ?? null, name, content: file.content, isTemplate: file.is_template, templateType: file.template_type });
                   await refresh();
                 }}><CopyPlus size={14} /></button>
-                <button className="rounded p-1 text-slate-500 hover:bg-slate-100" onClick={async () => {
-                  const folderPath = await dialog.prompt('Move file', folders.find((f) => f.id === file.folder_id)?.path ?? '', 'Destination folder path (blank for root)');
-                  if (folderPath === null) return;
-                  const dest = folders.find((f) => f.path === folderPath) ?? null;
-                  const path = `${dest?.path ? `${dest.path}/` : ''}${file.name}`;
-                  if (files.some((f) => f.id !== file.id && f.path === path)) return dialog.alert('Duplicate path', 'Another file already uses this path.');
-                  await updateFile(file.id, { folder_id: dest?.id ?? null, path });
-                  await refresh();
+                <button className="rounded p-1 text-slate-500 hover:bg-slate-100" onClick={() => {
+                  setMoveFileId(file.id);
+                  setMoveFolderId(file.folder_id ?? '');
                 }}>↗</button>
                 <button
                   className="rounded p-1 text-slate-500 hover:bg-slate-100"
@@ -103,6 +103,40 @@ export function FileList({ openTemplatePicker }: { openTemplatePicker: () => voi
           );
         })}
       </div>
+
+      {moveFile && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/30 p-4">
+          <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-4 shadow-xl">
+            <h3 className="text-sm font-semibold">Move file</h3>
+            <p className="mt-1 text-xs text-slate-500">Choose destination folder for <span className="font-medium text-slate-700">{moveFile.name}</span>.</p>
+            <select className="input mt-3" value={moveFolderId} onChange={(e) => setMoveFolderId(e.target.value)}>
+              <option value="">No folder (root)</option>
+              {folders.map((folder) => (
+                <option key={folder.id} value={folder.id}>{folder.path}</option>
+              ))}
+            </select>
+            <div className="mt-4 flex justify-end gap-2">
+              <button className="rounded-md border border-slate-300 px-3 py-1.5 text-sm" onClick={() => setMoveFileId(null)}>Cancel</button>
+              <button
+                className="rounded-md bg-slate-900 px-3 py-1.5 text-sm text-white"
+                onClick={async () => {
+                  const dest = folders.find((f) => f.id === moveFolderId) ?? null;
+                  const path = `${dest?.path ? `${dest.path}/` : ''}${moveFile.name}`;
+                  if (files.some((f) => f.id !== moveFile.id && f.path === path)) {
+                    await dialog.alert('Duplicate path', 'Another file already uses this path.');
+                    return;
+                  }
+                  await updateFile(moveFile.id, { folder_id: dest?.id ?? null, path });
+                  await refresh();
+                  setMoveFileId(null);
+                }}
+              >
+                Move
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

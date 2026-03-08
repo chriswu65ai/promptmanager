@@ -5,25 +5,28 @@ import { createFile } from '../../lib/dataApi';
 import { splitFrontmatter } from '../../lib/frontmatter';
 import { useDialog } from '../../components/ui/DialogProvider';
 
+type TemplateFilter = 'all' | 'file' | 'snippet';
+
 export function TemplateModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { files, workspace, selectedFolderId, folders, refresh } = usePromptStore();
   const dialog = useDialog();
   const [search, setSearch] = useState('');
+  const [selectedType, setSelectedType] = useState<TemplateFilter>('all');
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const templates = useMemo(
     () =>
       files.filter((f) => {
         const fm = splitFrontmatter(f.content).frontmatter;
-        const fromMetadata = fm.template === true && fm.templateType === 'file';
-        const fromColumns = f.is_template && f.template_type === 'file';
-        const matchesTemplateFlag = fromMetadata || fromColumns;
-        if (!matchesTemplateFlag) return false;
+        if (fm.template !== true) return false;
+
+        const fileType = fm.templateType ?? null;
+        if (selectedType !== 'all' && fileType !== selectedType) return false;
 
         const q = search.toLowerCase();
         return !search || f.name.toLowerCase().includes(q) || f.content.toLowerCase().includes(q);
       }),
-    [files, search],
+    [files, search, selectedType],
   );
   const selected = templates.find((t) => t.id === selectedId) ?? templates[0];
 
@@ -33,7 +36,12 @@ export function TemplateModal({ open, onClose }: { open: boolean; onClose: () =>
     <div className="fixed inset-0 z-30 flex items-end justify-center bg-slate-900/30 p-0 md:items-center md:p-6">
       <div className="grid h-[85vh] w-full max-w-4xl grid-cols-1 overflow-hidden rounded-t-2xl bg-white md:h-[70vh] md:grid-cols-[280px_1fr] md:rounded-2xl">
         <div className="border-r border-slate-200 p-3">
-          <div className="mb-2 text-sm font-semibold">File templates</div>
+          <div className="mb-2 text-sm font-semibold">Templates</div>
+          <select className="input mb-2" value={selectedType} onChange={(e) => setSelectedType(e.target.value as TemplateFilter)}>
+            <option value="all">All template types</option>
+            <option value="file">File templates</option>
+            <option value="snippet">Snippet templates</option>
+          </select>
           <input className="input mb-2" placeholder="Search templates" value={search} onChange={(e) => setSearch(e.target.value)} />
           <div className="space-y-1 overflow-y-auto">
             {templates.map((t) => (
@@ -55,7 +63,7 @@ export function TemplateModal({ open, onClose }: { open: boolean; onClose: () =>
               disabled={!selected}
               onClick={async () => {
                 if (!selected || !workspace) return;
-                const name = await dialog.prompt('Create from template', `from-template-${Date.now()}.md`, 'New file name');
+                const name = await dialog.prompt('Create from template', 'new-prompt.md', 'New file name');
                 if (!name) return;
                 const folder = folders.find((f) => f.id === selectedFolderId) ?? null;
                 await createFile({ workspaceId: workspace.id, folderId: folder?.id ?? null, folderPath: folder?.path ?? null, name, content: selected.content });

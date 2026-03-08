@@ -11,7 +11,7 @@ import type { FrontmatterModel } from '../../types/models';
 import { MetadataPanel } from '../metadata/MetadataPanel';
 import { useDialog } from '../../components/ui/DialogProvider';
 
-const EMOJIS = ['🔥', '✅', '📌', '🧠', '🚀', '💡', '⚠️', '📊', '🎯', '📝', '🤖', '🔍'];
+const EMOJIS = ['🔥', '✅', '📌', '🧠', '🚀', '💡', '⚠️', '📊', '🎯', '📝', '🤖', '🔍', '📣', '🧩', '💬', '✨'];
 
 export function EditorPane() {
   const { files, selectedFileId, refresh } = usePromptStore();
@@ -20,6 +20,7 @@ export function EditorPane() {
   const viewRef = useRef<EditorView | null>(null);
   const [tab, setTab] = useState<'edit' | 'preview' | 'split'>('split');
   const [emojiOpen, setEmojiOpen] = useState(false);
+  const [selectedEmoji, setSelectedEmoji] = useState<string>('🔥');
   const parsed = useMemo(() => splitFrontmatter(file?.content ?? ''), [file?.content]);
   const [body, setBody] = useState(parsed.body);
   const [frontmatter, setFrontmatter] = useState<FrontmatterModel>(parsed.frontmatter);
@@ -34,22 +35,48 @@ export function EditorPane() {
   const merged = composeMarkdown(frontmatter, body);
   const dirty = merged !== file.content;
 
-  const applySelection = (mapper: (selected: string) => { replacement: string; selectionOffsetStart?: number; selectionOffsetEnd?: number }) => {
+  const getLineText = () => {
+    const view = viewRef.current;
+    if (!view) return '';
+    return view.state.doc.lineAt(view.state.selection.main.from).text;
+  };
+
+  const getSelectedText = () => {
+    const view = viewRef.current;
+    if (!view) return '';
+    const sel = view.state.selection.main;
+    return view.state.doc.sliceString(sel.from, sel.to);
+  };
+
+  const applySelection = (replacement: string, startOffset = 0, endOffset = replacement.length) => {
     const view = viewRef.current;
     if (!view) return;
-    const doc = view.state.doc;
     const sel = view.state.selection.main;
-    const selected = doc.sliceString(sel.from, sel.to);
-    const { replacement, selectionOffsetStart = 0, selectionOffsetEnd = replacement.length } = mapper(selected);
     view.dispatch({
       changes: { from: sel.from, to: sel.to, insert: replacement },
-      selection: { anchor: sel.from + selectionOffsetStart, head: sel.from + selectionOffsetEnd },
+      selection: { anchor: sel.from + startOffset, head: sel.from + endOffset },
       scrollIntoView: true,
     });
     view.focus();
   };
 
-  const applyLinePrefix = (prefix: (i: number) => string) => {
+  const toggleWrap = (token: string, fallback: string) => {
+    const selected = getSelectedText();
+    if (!selected) {
+      const insert = `${token}${fallback}${token}`;
+      applySelection(insert, token.length, token.length + fallback.length);
+      return;
+    }
+    if (selected.startsWith(token) && selected.endsWith(token)) {
+      const unwrapped = selected.slice(token.length, selected.length - token.length);
+      applySelection(unwrapped, 0, unwrapped.length);
+      return;
+    }
+    const wrapped = `${token}${selected}${token}`;
+    applySelection(wrapped, token.length, token.length + selected.length);
+  };
+
+  const toggleLinePrefix = (prefix: string) => {
     const view = viewRef.current;
     if (!view) return;
     const doc = view.state.doc;
@@ -57,17 +84,53 @@ export function EditorPane() {
     const startLine = doc.lineAt(sel.from);
     const endLine = doc.lineAt(sel.to);
     const lines: string[] = [];
+    let hasAll = true;
     for (let i = startLine.number; i <= endLine.number; i += 1) {
-      lines.push(doc.line(i).text);
+      const t = doc.line(i).text;
+      lines.push(t);
+      if (!t.startsWith(prefix)) hasAll = false;
     }
-    const replaced = lines.map((line, i) => `${prefix(i)}${line}`).join('\n');
-    view.dispatch({
-      changes: { from: startLine.from, to: endLine.to, insert: replaced },
-      selection: { anchor: startLine.from, head: startLine.from + replaced.length },
-      scrollIntoView: true,
-    });
+    const replaced = lines.map((line) => (hasAll ? line.replace(prefix, '') : `${prefix}${line}`)).join('\n');
+    view.dispatch({ changes: { from: startLine.from, to: endLine.to, insert: replaced }, scrollIntoView: true });
     view.focus();
   };
+
+  const toggleOrderedList = () => {
+    const view = viewRef.current;
+    if (!view) return;
+    const doc = view.state.doc;
+    const sel = view.state.selection.main;
+    const startLine = doc.lineAt(sel.from);
+    const endLine = doc.lineAt(sel.to);
+    const lines: string[] = [];
+    let hasAll = true;
+    for (let i = startLine.number; i <= endLine.number; i += 1) {
+      const t = doc.line(i).text;
+      lines.push(t);
+      if (!/^\d+\.\s/.test(t)) hasAll = false;
+    }
+    const replaced = lines
+      .map((line, i) => (hasAll ? line.replace(/^\d+\.\s/, '') : `${i + 1}. ${line}`))
+      .join('\n');
+    view.dispatch({ changes: { from: startLine.from, to: endLine.to, insert: replaced }, scrollIntoView: true });
+    view.focus();
+  };
+
+  const currentLine = getLineText();
+  const currentSelection = getSelectedText();
+
+  const active = {
+    h1: currentLine.startsWith('# '),
+    h2: currentLine.startsWith('## '),
+    h3: currentLine.startsWith('### '),
+    bold: currentSelection.startsWith('**') && currentSelection.endsWith('**') || /\*\*.+\*\*/.test(currentLine),
+    italic: currentSelection.startsWith('*') && currentSelection.endsWith('*') && !currentSelection.startsWith('**') || /(^|\s)\*[^*]+\*/.test(currentLine),
+    ol: /^\d+\.\s/.test(currentLine),
+    ul: /^-\s/.test(currentLine),
+    task: /^-\s\[[ xX]\]\s/.test(currentLine),
+  };
+
+  const btn = (on: boolean) => `rounded border px-2 py-1 ${on ? 'border-slate-900 bg-slate-900 text-white' : ''}`;
 
   const downloadCurrent = () => {
     const filename = file.name.toLowerCase().endsWith('.md') ? file.name : `${file.name}.md`;
@@ -113,14 +176,14 @@ export function EditorPane() {
             </div>
           </div>
           <div className="mt-2 flex flex-wrap items-center gap-1 border-t border-slate-100 pt-2 text-xs">
-            <button className="rounded border px-2 py-1" onClick={() => applyLinePrefix(() => '# ')}>H1</button>
-            <button className="rounded border px-2 py-1" onClick={() => applyLinePrefix(() => '## ')}>H2</button>
-            <button className="rounded border px-2 py-1" onClick={() => applyLinePrefix(() => '### ')}>H3</button>
-            <button className="rounded border px-2 py-1" onClick={() => applySelection((s) => ({ replacement: `**${s || 'bold text'}**`, selectionOffsetStart: 2, selectionOffsetEnd: 2 + (s || 'bold text').length }))}>Bold</button>
-            <button className="rounded border px-2 py-1" onClick={() => applySelection((s) => ({ replacement: `*${s || 'italic text'}*`, selectionOffsetStart: 1, selectionOffsetEnd: 1 + (s || 'italic text').length }))}>Italic</button>
-            <button className="rounded border px-2 py-1" onClick={() => applyLinePrefix((i) => `${i + 1}. `)}>OL</button>
-            <button className="rounded border px-2 py-1" onClick={() => applyLinePrefix(() => '- ')}>UL</button>
-            <button className="rounded border px-2 py-1" onClick={() => applyLinePrefix(() => '- [ ] ')}>Task</button>
+            <button className={btn(active.h1)} onClick={() => toggleLinePrefix('# ')}>H1</button>
+            <button className={btn(active.h2)} onClick={() => toggleLinePrefix('## ')}>H2</button>
+            <button className={btn(active.h3)} onClick={() => toggleLinePrefix('### ')}>H3</button>
+            <button className={btn(active.bold)} onClick={() => toggleWrap('**', 'bold text')}>Bold</button>
+            <button className={btn(active.italic)} onClick={() => toggleWrap('*', 'italic text')}>Italic</button>
+            <button className={btn(active.ol)} onClick={toggleOrderedList}>OL</button>
+            <button className={btn(active.ul)} onClick={() => toggleLinePrefix('- ')}>UL</button>
+            <button className={btn(active.task)} onClick={() => toggleLinePrefix('- [ ] ')}>Task</button>
             <button
               className="rounded border px-2 py-1"
               onClick={async () => {
@@ -133,30 +196,12 @@ export function EditorPane() {
                 const header = `| ${Array.from({ length: cols }, (_, i) => `Col ${i + 1}`).join(' | ')} |`;
                 const sep = `| ${Array.from({ length: cols }, () => '---').join(' | ')} |`;
                 const bodyRows = Array.from({ length: rows }, () => `| ${Array.from({ length: cols }, () => ' ').join(' | ')} |`).join('\n');
-                applySelection(() => ({ replacement: `${header}\n${sep}\n${bodyRows}` }));
+                applySelection(`${header}\n${sep}\n${bodyRows}`);
               }}
             >
               Table
             </button>
-            <div className="relative">
-              <button className="rounded border px-2 py-1" onClick={() => setEmojiOpen((v) => !v)}><Smile className="mr-1 inline" size={12} />Emoji</button>
-              {emojiOpen && (
-                <div className="absolute left-0 top-8 z-20 grid grid-cols-6 gap-1 rounded-lg border border-slate-200 bg-white p-2 shadow">
-                  {EMOJIS.map((emoji) => (
-                    <button
-                      key={emoji}
-                      className="rounded px-1 py-1 hover:bg-slate-100"
-                      onClick={() => {
-                        applySelection(() => ({ replacement: emoji }));
-                        setEmojiOpen(false);
-                      }}
-                    >
-                      {emoji}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            <button className="rounded border px-2 py-1" onClick={() => setEmojiOpen(true)}><Smile className="mr-1 inline" size={12} />Emoji</button>
           </div>
         </div>
 
@@ -181,6 +226,37 @@ export function EditorPane() {
         </div>
       </section>
       <MetadataPanel frontmatter={frontmatter} onChange={setFrontmatter} />
+
+      {emojiOpen && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/30 p-4">
+          <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-4 shadow-xl">
+            <h3 className="text-sm font-semibold">Select emoji</h3>
+            <div className="mt-3 grid max-h-64 grid-cols-8 gap-2 overflow-y-auto">
+              {EMOJIS.map((emoji) => (
+                <button
+                  key={emoji}
+                  className={`rounded-lg border px-2 py-2 text-xl ${selectedEmoji === emoji ? 'border-slate-900 bg-slate-100' : 'border-slate-200'}`}
+                  onClick={() => setSelectedEmoji(emoji)}
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
+            <div className="mt-4 flex justify-end gap-2">
+              <button className="rounded-md border border-slate-300 px-3 py-1.5 text-sm" onClick={() => setEmojiOpen(false)}>Close</button>
+              <button
+                className="rounded-md bg-slate-900 px-3 py-1.5 text-sm text-white"
+                onClick={() => {
+                  applySelection(selectedEmoji);
+                  setEmojiOpen(false);
+                }}
+              >
+                Insert
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
