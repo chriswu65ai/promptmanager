@@ -1,10 +1,26 @@
-import matter from 'gray-matter';
 import YAML from 'yaml';
 import type { FrontmatterModel } from '../types/models';
 
+const FRONTMATTER_REGEX = /^---\s*\n([\s\S]*?)\n---\s*\n?/;
+
 export function splitFrontmatter(markdown: string): { frontmatter: FrontmatterModel; body: string } {
-  const parsed = matter(markdown);
-  return { frontmatter: parsed.data as FrontmatterModel, body: parsed.content };
+  const match = markdown.match(FRONTMATTER_REGEX);
+  if (!match) {
+    return { frontmatter: {}, body: markdown };
+  }
+
+  const [, rawYaml] = match;
+  const body = markdown.slice(match[0].length);
+
+  try {
+    const parsed = YAML.parse(rawYaml);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return { frontmatter: {}, body };
+    }
+    return { frontmatter: parsed as FrontmatterModel, body };
+  } catch {
+    return { frontmatter: {}, body: markdown };
+  }
 }
 
 export function composeMarkdown(frontmatter: FrontmatterModel, body: string): string {

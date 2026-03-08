@@ -9,7 +9,7 @@ Prompt Manager is a Markdown-first, sync-friendly web app for organizing, editin
 - **Routing:** BrowserRouter (single route for MVP)
 - **Editor:** CodeMirror (`@uiw/react-codemirror`) with markdown extension
 - **Preview:** `react-markdown`
-- **Frontmatter parsing/composing:** `gray-matter` + `yaml`
+- **Frontmatter parsing/composing:** browser-safe YAML frontmatter parser + `yaml`
 - **State:** Zustand (`usePromptStore`) for workspace/folder/file global state
 - **Backend:** Supabase (Auth + Postgres)
 - **Data model:** markdown content + folder/file metadata in database, preserving portability and future export capability
