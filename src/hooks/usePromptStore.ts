@@ -8,12 +8,14 @@ type Store = {
   files: PromptFile[];
   selectedFolderId: string | null;
   selectedFileId: string | null;
+  selectedTag: string | null;
   search: string;
   loading: boolean;
   error: string | null;
   setSearch: (search: string) => void;
   selectFolder: (id: string | null) => void;
   selectFile: (id: string | null) => void;
+  selectTag: (tag: string | null) => void;
   bootstrap: () => Promise<void>;
   refresh: () => Promise<void>;
 };
@@ -24,12 +26,14 @@ export const usePromptStore = create<Store>((set, get) => ({
   files: [],
   selectedFolderId: null,
   selectedFileId: null,
+  selectedTag: null,
   search: '',
   loading: false,
   error: null,
   setSearch: (search) => set({ search }),
-  selectFolder: (id) => set({ selectedFolderId: id, selectedFileId: null }),
+  selectFolder: (id) => set({ selectedFolderId: id, selectedTag: null, selectedFileId: null }),
   selectFile: (id) => set({ selectedFileId: id }),
+  selectTag: (tag) => set({ selectedTag: tag, selectedFolderId: null, selectedFileId: null }),
   bootstrap: async () => {
     set({ loading: true, error: null });
     const { data: ws, error } = await supabase.from('workspaces').select('*').limit(1).maybeSingle();

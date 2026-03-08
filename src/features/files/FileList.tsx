@@ -2,13 +2,22 @@ import { CopyPlus, FilePlus2, Pencil, Search, Trash2 } from 'lucide-react';
 import { splitFrontmatter } from '../../lib/frontmatter';
 import { createFile, deleteFile, updateFile } from '../../lib/dataApi';
 import { usePromptStore } from '../../hooks/usePromptStore';
+import { useDialog } from '../../components/ui/DialogProvider';
 
 export function FileList({ openTemplatePicker }: { openTemplatePicker: () => void }) {
-  const { files, folders, selectedFolderId, selectedFileId, selectFile, workspace, refresh, search, setSearch } = usePromptStore();
+  const { files, folders, selectedFolderId, selectedTag, selectedFileId, selectFile, workspace, refresh, search, setSearch } = usePromptStore();
+  const dialog = useDialog();
 
   const visible = files.filter((file) => {
     const folderMatch = !selectedFolderId || file.folder_id === selectedFolderId;
     if (!folderMatch) return false;
+
+    if (selectedTag) {
+      const parsed = splitFrontmatter(file.content);
+      const tags = Array.isArray(parsed.frontmatter.tags) ? parsed.frontmatter.tags : [];
+      if (!tags.includes(selectedTag)) return false;
+    }
+
     if (!search) return true;
     const q = search.toLowerCase();
     return file.name.toLowerCase().includes(q) || file.content.toLowerCase().includes(q);
@@ -26,11 +35,11 @@ export function FileList({ openTemplatePicker }: { openTemplatePicker: () => voi
             className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-medium hover:bg-slate-50"
             onClick={async () => {
               if (!workspace) return;
-              const name = window.prompt('File name (with .md)', 'new-prompt.md');
+              const name = await dialog.prompt('Create prompt file', 'new-prompt.md', 'File name (include .md)');
               if (!name) return;
               const folder = folders.find((f) => f.id === selectedFolderId) ?? null;
               const duplicate = files.some((f) => f.path === `${folder?.path ? `${folder.path}/` : ''}${name}`);
-              if (duplicate) return window.alert('File name already exists in this location.');
+              if (duplicate) return dialog.alert('Duplicate file', 'File name already exists in this location.');
               await createFile({ workspaceId: workspace.id, folderId: folder?.id ?? null, folderPath: folder?.path ?? null, name, content: '# New Prompt\n' });
               await refresh();
             }}
@@ -55,34 +64,34 @@ export function FileList({ openTemplatePicker }: { openTemplatePicker: () => voi
               </button>
               <div className="hidden items-center gap-1 group-hover:flex">
                 <button className="rounded p-1 text-slate-500 hover:bg-slate-100" onClick={async () => {
-                  const name = window.prompt('Rename file', file.name);
+                  const name = await dialog.prompt('Rename file', file.name, 'New file name');
                   if (!name) return;
                   const folder = folders.find((f) => f.id === file.folder_id) ?? null;
                   const path = `${folder?.path ? `${folder.path}/` : ''}${name}`;
-                  if (files.some((f) => f.id !== file.id && f.path === path)) return window.alert('Duplicate path.');
+                  if (files.some((f) => f.id !== file.id && f.path === path)) return dialog.alert('Duplicate path', 'Another file already uses this path.');
                   await updateFile(file.id, { name, path });
                   await refresh();
                 }}><Pencil size={14} /></button>
                 <button className="rounded p-1 text-slate-500 hover:bg-slate-100" onClick={async () => {
-                  const name = window.prompt('Duplicate as', file.name.replace('.md', '-copy.md'));
+                  const name = await dialog.prompt('Duplicate file', file.name.replace('.md', '-copy.md'), 'New duplicate file name');
                   if (!name || !workspace) return;
                   const folder = folders.find((f) => f.id === file.folder_id) ?? null;
                   await createFile({ workspaceId: workspace.id, folderId: folder?.id ?? null, folderPath: folder?.path ?? null, name, content: file.content, isTemplate: file.is_template, templateType: file.template_type });
                   await refresh();
                 }}><CopyPlus size={14} /></button>
                 <button className="rounded p-1 text-slate-500 hover:bg-slate-100" onClick={async () => {
-                  const folderPath = window.prompt('Move to folder path (blank for root)', folders.find((f) => f.id === file.folder_id)?.path ?? '');
+                  const folderPath = await dialog.prompt('Move file', folders.find((f) => f.id === file.folder_id)?.path ?? '', 'Destination folder path (blank for root)');
                   if (folderPath === null) return;
                   const dest = folders.find((f) => f.path === folderPath) ?? null;
                   const path = `${dest?.path ? `${dest.path}/` : ''}${file.name}`;
-                  if (files.some((f) => f.id !== file.id && f.path === path)) return window.alert('Duplicate path.');
+                  if (files.some((f) => f.id !== file.id && f.path === path)) return dialog.alert('Duplicate path', 'Another file already uses this path.');
                   await updateFile(file.id, { folder_id: dest?.id ?? null, path });
                   await refresh();
                 }}>↗</button>
                 <button
                   className="rounded p-1 text-slate-500 hover:bg-slate-100"
                   onClick={async () => {
-                    if (!window.confirm(`Delete ${file.name}?`)) return;
+                    if (!(await dialog.confirm('Delete file', `Delete ${file.name}?`))) return;
                     await deleteFile(file.id);
                     await refresh();
                   }}

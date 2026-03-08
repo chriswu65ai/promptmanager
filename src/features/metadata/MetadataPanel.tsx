@@ -21,6 +21,20 @@ export function MetadataPanel({ frontmatter, onChange }: { frontmatter: Frontmat
             <option value="snippet">Snippet</option>
           </select>
         </label>
+        <div className="flex gap-2">
+          <button
+            className="flex-1 rounded-md border border-slate-300 px-2 py-1.5 text-xs hover:bg-slate-50"
+            onClick={() => onChange({ ...frontmatter, template: true, templateType: frontmatter.templateType ?? 'file' })}
+          >
+            Add template type
+          </button>
+          <button
+            className="flex-1 rounded-md border border-slate-300 px-2 py-1.5 text-xs hover:bg-slate-50"
+            onClick={() => onChange({ ...frontmatter, template: false, templateType: undefined })}
+          >
+            Delete template type
+          </button>
+        </div>
       </div>
     </aside>
   );

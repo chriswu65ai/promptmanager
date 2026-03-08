@@ -72,13 +72,13 @@ npm run dev
 - Markdown editing + preview + split mode
 - Unsaved changes indicator and save action
 - Copy prompt action
-- Frontmatter metadata editor (title/tags/template flags)
+- Frontmatter metadata editor (title/tags/template flags + add/delete template type actions)
 - Create new file from **file template**
-- Insert **snippet template** into current prompt
 - Loading + error + empty states
 - Duplicate name checks for new files/folders
 - Destructive confirmation dialogs
 - Responsive shell with mobile sidebar drawer + template modal bottom-sheet behavior
+- One-click export of all prompts as a ZIP of `.md` files (folder structure preserved)
 
 ## Tradeoffs
 

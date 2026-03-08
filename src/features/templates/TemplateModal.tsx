@@ -2,17 +2,28 @@ import ReactMarkdown from 'react-markdown';
 import { useMemo, useState } from 'react';
 import { usePromptStore } from '../../hooks/usePromptStore';
 import { createFile } from '../../lib/dataApi';
+import { splitFrontmatter } from '../../lib/frontmatter';
+import { useDialog } from '../../components/ui/DialogProvider';
 
-type Mode = 'file' | 'snippet';
-
-export function TemplateModal({ mode, open, onClose, onInsertSnippet }: { mode: Mode; open: boolean; onClose: () => void; onInsertSnippet: (content: string) => void }) {
+export function TemplateModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { files, workspace, selectedFolderId, folders, refresh } = usePromptStore();
+  const dialog = useDialog();
   const [search, setSearch] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const templates = useMemo(
-    () => files.filter((f) => f.is_template && f.template_type === mode && (f.name.toLowerCase().includes(search.toLowerCase()) || f.content.toLowerCase().includes(search.toLowerCase()))),
-    [files, mode, search],
+    () =>
+      files.filter((f) => {
+        const fm = splitFrontmatter(f.content).frontmatter;
+        const fromMetadata = fm.template === true && fm.templateType === 'file';
+        const fromColumns = f.is_template && f.template_type === 'file';
+        const matchesTemplateFlag = fromMetadata || fromColumns;
+        if (!matchesTemplateFlag) return false;
+
+        const q = search.toLowerCase();
+        return !search || f.name.toLowerCase().includes(q) || f.content.toLowerCase().includes(q);
+      }),
+    [files, search],
   );
   const selected = templates.find((t) => t.id === selectedId) ?? templates[0];
 
@@ -22,7 +33,7 @@ export function TemplateModal({ mode, open, onClose, onInsertSnippet }: { mode: 
     <div className="fixed inset-0 z-30 flex items-end justify-center bg-slate-900/30 p-0 md:items-center md:p-6">
       <div className="grid h-[85vh] w-full max-w-4xl grid-cols-1 overflow-hidden rounded-t-2xl bg-white md:h-[70vh] md:grid-cols-[280px_1fr] md:rounded-2xl">
         <div className="border-r border-slate-200 p-3">
-          <div className="mb-2 text-sm font-semibold">{mode === 'file' ? 'File templates' : 'Snippet templates'}</div>
+          <div className="mb-2 text-sm font-semibold">File templates</div>
           <input className="input mb-2" placeholder="Search templates" value={search} onChange={(e) => setSearch(e.target.value)} />
           <div className="space-y-1 overflow-y-auto">
             {templates.map((t) => (
@@ -39,23 +50,19 @@ export function TemplateModal({ mode, open, onClose, onInsertSnippet }: { mode: 
             <ReactMarkdown>{selected?.content ?? 'No template selected.'}</ReactMarkdown>
           </div>
           <div className="border-t border-slate-200 p-3">
-            {mode === 'file' ? (
-              <button
-                className="rounded-lg bg-slate-900 px-4 py-2 text-sm text-white"
-                disabled={!selected}
-                onClick={async () => {
-                  if (!selected || !workspace) return;
-                  const name = window.prompt('New file name', `from-template-${Date.now()}.md`);
-                  if (!name) return;
-                  const folder = folders.find((f) => f.id === selectedFolderId) ?? null;
-                  await createFile({ workspaceId: workspace.id, folderId: folder?.id ?? null, folderPath: folder?.path ?? null, name, content: selected.content });
-                  await refresh();
-                  onClose();
-                }}
-              >Create file from template</button>
-            ) : (
-              <button className="rounded-lg bg-slate-900 px-4 py-2 text-sm text-white" disabled={!selected} onClick={() => selected && onInsertSnippet(selected.content)}>Insert snippet</button>
-            )}
+            <button
+              className="rounded-lg bg-slate-900 px-4 py-2 text-sm text-white"
+              disabled={!selected}
+              onClick={async () => {
+                if (!selected || !workspace) return;
+                const name = await dialog.prompt('Create from template', `from-template-${Date.now()}.md`, 'New file name');
+                if (!name) return;
+                const folder = folders.find((f) => f.id === selectedFolderId) ?? null;
+                await createFile({ workspaceId: workspace.id, folderId: folder?.id ?? null, folderPath: folder?.path ?? null, name, content: selected.content });
+                await refresh();
+                onClose();
+              }}
+            >Create file from template</button>
           </div>
         </div>
       </div>

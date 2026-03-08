@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AppShell } from './components/AppShell';
 import { AuthGate } from './features/auth/AuthGate';
 import { FolderTree } from './features/folders/FolderTree';
@@ -6,19 +6,15 @@ import { FileList } from './features/files/FileList';
 import { EditorPane } from './features/editor/EditorPane';
 import { TemplateModal } from './features/templates/TemplateModal';
 import { usePromptStore } from './hooks/usePromptStore';
-import { updateFile } from './lib/dataApi';
 
 export function App() {
-  const { bootstrap, loading, error, selectedFileId, files, refresh } = usePromptStore();
+  const { bootstrap, loading, error } = usePromptStore();
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [fileModal, setFileModal] = useState(false);
-  const [snippetModal, setSnippetModal] = useState(false);
 
   useEffect(() => {
     bootstrap();
   }, [bootstrap]);
-
-  const current = useMemo(() => files.find((f) => f.id === selectedFileId), [files, selectedFileId]);
 
   return (
     <AuthGate>
@@ -36,23 +32,12 @@ export function App() {
               <FileList openTemplatePicker={() => setFileModal(true)} />
             </div>
             <div className="h-[calc(100%-1px)]">
-              <EditorPane openSnippetPicker={() => setSnippetModal(true)} />
+              <EditorPane />
             </div>
           </div>
         }
       />
-      <TemplateModal mode="file" open={fileModal} onClose={() => setFileModal(false)} onInsertSnippet={() => undefined} />
-      <TemplateModal
-        mode="snippet"
-        open={snippetModal}
-        onClose={() => setSnippetModal(false)}
-        onInsertSnippet={async (snippet) => {
-          if (!current) return;
-          await updateFile(current.id, { content: `${current.content}\n\n${snippet}` });
-          await refresh();
-          setSnippetModal(false);
-        }}
-      />
+      <TemplateModal open={fileModal} onClose={() => setFileModal(false)} />
     </AuthGate>
   );
 }
