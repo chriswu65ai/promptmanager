@@ -38,9 +38,11 @@ export function EditorPane() {
     return match ? `---\n${match[1]}\n---` : '';
   }, [frontmatter]);
 
+
   if (!file) return <div className="flex h-full items-center justify-center text-slate-400">Select a prompt file.</div>;
 
   const merged = composeMarkdown(frontmatter, body);
+  const editorValue = showMetadata ? merged : body;
   const dirty = merged !== file.content;
 
   const getLineText = () => {
@@ -434,14 +436,22 @@ ${merged}`);
         <div className={`grid min-h-0 flex-1 ${tab === 'split' ? 'md:grid-cols-2' : 'grid-cols-1'}`}>
           {(tab === 'edit' || tab === 'split') && (
             <CodeMirror
-              value={body}
+              value={editorValue}
               className="min-h-0 flex-1 overflow-auto"
               height="100%"
               extensions={[markdown()]}
               onCreateEditor={(view) => {
                 viewRef.current = view;
               }}
-              onChange={(v) => setBody(v)}
+              onChange={(v) => {
+                if (showMetadata) {
+                  const nextParsed = splitFrontmatter(v);
+                  setFrontmatter(nextParsed.frontmatter);
+                  setBody(nextParsed.body);
+                  return;
+                }
+                setBody(v);
+              }}
             />
           )}
           {(tab === 'preview' || tab === 'split') && (
