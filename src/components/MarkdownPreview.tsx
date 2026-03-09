@@ -60,6 +60,9 @@ export function MarkdownPreview({ content }: Props) {
   return (
     <ReactMarkdown
       components={{
+        hr() {
+          return <hr />;
+        },
         p({ children }) {
           const text = flattenText(children);
           if (text.trim() === '') return <p>{'\u00a0'}</p>;
