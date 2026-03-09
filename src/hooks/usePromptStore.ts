@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { Folder, PromptFile, Workspace } from '../types/models';
 import { supabase } from '../lib/supabase';
+import { initializeStarterWorkspace } from '../lib/dataApi';
 
 type Store = {
   workspace: Workspace | null;
@@ -39,20 +40,14 @@ export const usePromptStore = create<Store>((set, get) => ({
     const { data: ws, error } = await supabase.from('workspaces').select('*').limit(1).maybeSingle();
     if (error) return set({ loading: false, error: error.message });
     if (!ws) {
-      const { data: authData, error: authError } = await supabase.auth.getUser();
-      if (authError) return set({ loading: false, error: authError.message });
-
-      const user = authData.user;
-      if (!user) {
-        return set({ loading: false, error: 'No authenticated user found. Please sign in and try again.' });
-      }
-
-      const { data: created, error: createError } = await supabase
-        .from('workspaces')
-        .insert({ name: 'My Workspace', owner_id: user.id })
-        .select('*')
-        .single();
+      const { data: starterWorkspaceId, error: createError } = await initializeStarterWorkspace();
       if (createError) return set({ loading: false, error: createError.message });
+      const { data: created, error: fetchError } = await supabase
+        .from('workspaces')
+        .select('*')
+        .eq('id', starterWorkspaceId)
+        .single();
+      if (fetchError) return set({ loading: false, error: fetchError.message });
       set({ workspace: created as Workspace, loading: false });
       await get().refresh();
       return;
