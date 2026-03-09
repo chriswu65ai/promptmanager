@@ -92,7 +92,7 @@ export function FolderTree({ collapsed, onToggleCollapsed }: { collapsed: boolea
     return (
       <div className="flex items-center justify-center py-2">
         <button
-          className="rounded-md p-1 text-slate-600 hover:bg-slate-100"
+          className="rounded-md p-1.5 text-slate-600 hover:bg-slate-100"
           onClick={onToggleCollapsed}
           aria-label="Expand folders panel"
           title="Expand folders panel"
@@ -167,7 +167,7 @@ export function FolderTree({ collapsed, onToggleCollapsed }: { collapsed: boolea
       <div className="flex items-center justify-between py-2 pl-3 pr-4">
         <div className="flex items-center gap-1">
           <button
-            className="rounded-md p-1 text-slate-600 hover:bg-slate-100"
+            className="rounded-md p-1.5 text-slate-600 hover:bg-slate-100"
             onClick={onToggleCollapsed}
             aria-label="Collapse folders panel"
             title="Collapse folders panel"

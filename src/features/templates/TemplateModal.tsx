@@ -1,3 +1,4 @@
+import { FilePlus2 } from 'lucide-react';
 import { MarkdownPreview } from '../../components/MarkdownPreview';
 import { useMemo, useState } from 'react';
 import { usePromptStore } from '../../hooks/usePromptStore';
@@ -48,9 +49,9 @@ export function TemplateModal({ open, onClose }: { open: boolean; onClose: () =>
           <div className="markdown-preview max-w-none flex-1 overflow-y-auto bg-white px-5 pb-5 pt-2 text-sm">
             <MarkdownPreview content={selectedBody} />
           </div>
-          <div className="border-t border-slate-200 p-3">
+          <div className="flex justify-center border-t border-slate-200 p-3">
             <button
-              className="rounded-lg bg-slate-900 px-4 py-2 text-sm text-white"
+              className="inline-flex items-center justify-center gap-1 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium hover:bg-slate-50"
               disabled={!selected}
               onClick={async () => {
                 if (!selected || !workspace) return;
@@ -76,7 +77,7 @@ export function TemplateModal({ open, onClose }: { open: boolean; onClose: () =>
                 await refresh();
                 onClose();
               }}
-            >Create file from template</button>
+            ><FilePlus2 size={14} />Create file from template</button>
           </div>
         </div>
       </div>

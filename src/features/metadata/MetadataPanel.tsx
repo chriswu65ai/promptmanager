@@ -64,34 +64,35 @@ export function MetadataPanel({ frontmatter, onChange, collapsed, onToggleCollap
             onBlur={() => setTagsInput((frontmatter.tags ?? []).join(', '))}
           />
         </label>
-        <div className="grid grid-cols-2 gap-2">
-          <label className="block text-xs text-slate-500">Template
-            <select
-              className="input mt-1"
-              value={frontmatter.template ? 'yes' : 'no'}
-              onChange={(e) => onChange({ ...frontmatter, template: e.target.value === 'yes' })}
-            >
-              <option value="no">No</option>
-              <option value="yes">Yes</option>
-            </select>
+        <div className="space-y-2">
+          <label className="flex items-center gap-2 text-xs text-slate-600">
+            <input
+              type="checkbox"
+              className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-400"
+              checked={frontmatter.template === true}
+              onChange={(e) => onChange({ ...frontmatter, template: e.target.checked })}
+            />
+            Template
           </label>
-          <label className="block text-xs text-slate-500">Starred
-            <select
-              className="input mt-1"
-              value={frontmatter.starred ? 'yes' : 'no'}
-              onChange={(e) => onChange({ ...frontmatter, starred: e.target.value === 'yes' })}
-            >
-              <option value="no">No</option>
-              <option value="yes">Yes</option>
-            </select>
+          <label className="flex items-center gap-2 text-xs text-slate-600">
+            <input
+              type="checkbox"
+              className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-400"
+              checked={frontmatter.starred === true}
+              onChange={(e) => onChange({ ...frontmatter, starred: e.target.checked })}
+            />
+            Starred
+          </label>
+          <label className="flex items-center gap-2 text-xs text-slate-600">
+            <input
+              type="checkbox"
+              className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-400"
+              checked={showMetadata}
+              onChange={(e) => onShowMetadataChange(e.target.checked)}
+            />
+            Show metadata
           </label>
         </div>
-        <label className="block text-xs text-slate-500">Show metadata
-          <select className="input mt-1" value={showMetadata ? 'yes' : 'no'} onChange={(e) => onShowMetadataChange(e.target.value === 'yes')}>
-            <option value="no">No</option>
-            <option value="yes">Yes</option>
-          </select>
-        </label>
       </div>
     </aside>
   );
