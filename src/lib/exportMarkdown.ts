@@ -162,3 +162,52 @@ export async function exportWorkspaceMarkdownZip(workspace: Workspace, files: Pr
   anchor.remove();
   URL.revokeObjectURL(url);
 }
+
+export async function readMarkdownEntriesFromImport(file: File) {
+  const extension = file.name.split('.').pop()?.toLowerCase();
+  if (extension === 'md') {
+    return [{ path: file.name, content: await file.text() }];
+  }
+
+  if (extension !== 'zip') {
+    throw new Error('Unsupported file type. Please upload a .md or .zip file.');
+  }
+
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const decoder = new TextDecoder();
+  const entries: Array<{ path: string; content: string }> = [];
+  let offset = 0;
+
+  while (offset + 4 <= bytes.length) {
+    const signature = view.getUint32(offset, true);
+    if (signature !== 0x04034b50) break;
+
+    const compressionMethod = view.getUint16(offset + 8, true);
+    const compressedSize = view.getUint32(offset + 18, true);
+    const fileNameLength = view.getUint16(offset + 26, true);
+    const extraLength = view.getUint16(offset + 28, true);
+    const fileNameStart = offset + 30;
+    const fileNameEnd = fileNameStart + fileNameLength;
+    const contentStart = fileNameEnd + extraLength;
+    const contentEnd = contentStart + compressedSize;
+
+    if (contentEnd > bytes.length) {
+      throw new Error('ZIP file is malformed or truncated.');
+    }
+
+    const entryName = decoder.decode(bytes.slice(fileNameStart, fileNameEnd));
+    if (compressionMethod !== 0) {
+      throw new Error('Only uncompressed ZIP files are currently supported.');
+    }
+
+    if (entryName.toLowerCase().endsWith('.md') && !entryName.endsWith('/')) {
+      const content = decoder.decode(bytes.slice(contentStart, contentEnd));
+      entries.push({ path: entryName, content });
+    }
+
+    offset = contentEnd;
+  }
+
+  return entries;
+}
