@@ -47,7 +47,7 @@ supabase link --project-ref <your-project-ref>
 supabase db push --include-all
 ```
 
-5. (Optional) seed starter data via CLI:
+5. (Optional) initialize an empty workspace via CLI seed command:
 
 ```bash
 supabase db seed
@@ -76,16 +76,16 @@ Use this only if CLI access is blocked.
 2. In SQL editor run migrations in order:
    - `supabase/migrations/202603080001_init.sql`
    - `supabase/migrations/202603090001_initialize_starter_workspace.sql`
+   - `supabase/migrations/202603090002_initialize_empty_workspace.sql`
 3. Enable email auth (magic link).
 4. Optionally run `supabase/seed/seed.sql`.
 
 
-## Starter bootstrap idempotency
+## Workspace initialization idempotency
 
 `public.initialize_starter_workspace()` is safe to rerun:
 - It creates at most one workspace per user (`workspaces.owner_id` unique index + `on conflict do nothing`).
-- Starter folders are inserted with `on conflict (workspace_id, path) do nothing`.
-- Starter files are inserted with `on conflict (workspace_id, path) do nothing`.
+- It does not insert any starter folders or files, so new accounts begin with a blank database.
 
 The client calls this RPC only when no workspace exists in `usePromptStore.bootstrap`, so first-run accounts are initialized once automatically.
 
@@ -101,7 +101,7 @@ The client calls this RPC only when no workspace exists in `usePromptStore.boots
 ## Core implemented flows
 
 - Magic-link sign-in via Supabase Auth
-- Workspace bootstrap via `initialize_starter_workspace()` on first run
+- Workspace initialization via `initialize_starter_workspace()` on first run (empty workspace only)
 - Folder tree with create/delete (with non-empty guard)
 - File list with create/delete
 - Global search by filename and content
