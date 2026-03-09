@@ -20,7 +20,7 @@ export function MetadataPanel({ frontmatter, onChange, collapsed, onToggleCollap
     return (
       <aside className="hidden border-l border-slate-200 bg-white lg:flex lg:w-12 lg:flex-col lg:items-center lg:pt-2">
         <button
-          className="rounded-md p-2 text-slate-600 hover:bg-slate-100"
+          className="rounded-md p-1 text-slate-600 hover:bg-slate-100"
           onClick={onToggleCollapsed}
           aria-label="Expand metadata panel"
           title="Expand metadata panel"

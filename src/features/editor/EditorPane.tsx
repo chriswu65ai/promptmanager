@@ -94,6 +94,21 @@ export function EditorPane() {
 
     if (!sel.empty) {
       const selected = getSelectedText();
+      const line = view.state.doc.lineAt(sel.from);
+      const isSingleLineSelection = !selected.includes('\n') && sel.from >= line.from && sel.to <= line.to;
+      const prefixMatch = isSingleLineSelection
+        ? selected.match(/^(#{1,6}\s+|-\s\[[ xX]\]\s+|-\s+|\d+\.\s+)/)
+        : null;
+
+      if (prefixMatch) {
+        const prefix = prefixMatch[0];
+        const remainder = selected.slice(prefix.length);
+        const nextRemainder = transformSegment(remainder);
+        const next = `${prefix}${nextRemainder}`;
+        applySelection(next, 0, next.length);
+        return;
+      }
+
       const next = transformSegment(selected);
       applySelection(next, 0, next.length);
       return;
@@ -101,8 +116,8 @@ export function EditorPane() {
 
     const line = view.state.doc.lineAt(sel.from);
     const cursorInLine = sel.from - line.from;
-    const headingPrefix = line.text.match(/^#{1,6}\s+/)?.[0] ?? '';
-    const contentStart = headingPrefix.length;
+    const prefixMatch = line.text.match(/^(#{1,6}\s+|-\s\[[ xX]\]\s+|-\s+|\d+\.\s+)/);
+    const contentStart = prefixMatch?.[0].length ?? 0;
     const content = line.text.slice(contentStart);
 
     let targetStart = -1;
