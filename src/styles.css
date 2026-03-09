@@ -11,7 +11,7 @@ button { @apply transition; }
 .markdown-preview h1 { @apply mb-2 mt-3 text-3xl font-bold leading-tight; }
 .markdown-preview h2 { @apply mb-2 mt-3 text-2xl font-semibold leading-tight; }
 .markdown-preview h3 { @apply mb-1 mt-2 text-xl font-semibold leading-tight; }
-.markdown-preview p { @apply my-1.5; }
+.markdown-preview p { @apply my-1.5 whitespace-pre-wrap; }
 .markdown-preview ul { @apply my-1.5 list-disc pl-6; }
 .markdown-preview ol { @apply my-1.5 list-decimal pl-6; }
 .markdown-preview li { @apply my-1; }
