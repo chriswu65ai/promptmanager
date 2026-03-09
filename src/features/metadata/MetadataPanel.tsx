@@ -57,11 +57,13 @@ export function MetadataPanel({ frontmatter, onChange, collapsed, onToggleCollap
             className="input mt-1"
             value={tagsInput}
             onChange={(e) => {
-              const next = e.target.value;
-              setTagsInput(next);
-              onChange({ ...frontmatter, tags: next.split(',').map((x) => x.trim()).filter(Boolean) });
+              setTagsInput(e.target.value);
             }}
-            onBlur={() => setTagsInput((frontmatter.tags ?? []).join(', '))}
+            onBlur={() => {
+              const nextTags = tagsInput.split(',').map((x) => x.trim()).filter(Boolean);
+              onChange({ ...frontmatter, tags: nextTags });
+              setTagsInput(nextTags.join(', '));
+            }}
           />
         </label>
         <div className="space-y-2">

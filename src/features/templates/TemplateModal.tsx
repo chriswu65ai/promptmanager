@@ -26,6 +26,10 @@ export function TemplateModal({ open, onClose }: { open: boolean; onClose: () =>
   const selected = templates.find((t) => t.id === selectedId) ?? templates[0];
   const selectedBody = selected ? splitFrontmatter(selected.content).body : 'No template selected.';
   const ensureMdExtension = (name: string) => (name.toLowerCase().endsWith('.md') ? name : `${name}.md`);
+  const hasDuplicateInFolder = (folderId: string | null, fileName: string) => {
+    const normalizedName = fileName.toLowerCase();
+    return files.some((file) => file.folder_id === folderId && file.name.toLowerCase() === normalizedName);
+  };
 
   if (!open) return null;
 
@@ -60,8 +64,11 @@ export function TemplateModal({ open, onClose }: { open: boolean; onClose: () =>
                 const fileName = ensureMdExtension(name.trim());
                 const folder = folders.find((f) => f.id === selectedFolderId) ?? null;
                 const parsed = splitFrontmatter(selected.content);
-                const duplicate = files.some((f) => f.path === `${folder?.path ? `${folder.path}/` : ''}${fileName}`);
-                if (duplicate) return dialog.alert('Duplicate file', 'A file cannot be created because a file with the same name already exists in this folder.');
+                const duplicate = hasDuplicateInFolder(folder?.id ?? null, fileName);
+                if (duplicate) {
+                  await dialog.alert('Duplicate file', 'A file cannot be created because a file with the same name already exists in this folder.');
+                  return;
+                }
                 const clonedFrontmatter = { ...parsed.frontmatter, template: false, title: fileName.replace(/\.md$/i, '') };
                 const clonedContent = composeMarkdown(clonedFrontmatter, parsed.body);
                 const { error } = await createFile({

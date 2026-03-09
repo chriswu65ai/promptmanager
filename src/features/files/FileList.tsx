@@ -51,6 +51,10 @@ export function FileList({ openTemplatePicker }: { openTemplatePicker: () => voi
   const moveFile = useMemo(() => files.find((f) => f.id === moveFileId) ?? null, [files, moveFileId]);
 
   const ensureMdExtension = (name: string) => (name.toLowerCase().endsWith('.md') ? name : `${name}.md`);
+  const hasDuplicateInFolder = (folderId: string | null, fileName: string, currentFileId?: string) => {
+    const normalizedName = fileName.toLowerCase();
+    return files.some((file) => file.folder_id === folderId && file.name.toLowerCase() === normalizedName && file.id !== currentFileId);
+  };
 
   return (
     <div className="flex h-full flex-col">
@@ -65,8 +69,11 @@ export function FileList({ openTemplatePicker }: { openTemplatePicker: () => voi
               if (!name) return;
               const fileName = ensureMdExtension(name.trim());
               const folder = folders.find((f) => f.id === selectedFolderId) ?? null;
-              const duplicate = files.some((f) => f.path === `${folder?.path ? `${folder.path}/` : ''}${fileName}`);
-              if (duplicate) return dialog.alert('Duplicate file', 'A file cannot be created because a file with the same name already exists in this folder.');
+              const duplicate = hasDuplicateInFolder(folder?.id ?? null, fileName);
+              if (duplicate) {
+                await dialog.alert('Duplicate file', 'A file cannot be created because a file with the same name already exists in this folder.');
+                return;
+              }
               const baseName = fileName.replace(/\.md$/i, '');
               const frontmatter: FrontmatterModel = { title: baseName };
               const content = composeMarkdown(frontmatter, '');
@@ -127,7 +134,7 @@ export function FileList({ openTemplatePicker }: { openTemplatePicker: () => voi
                   const nextName = ensureMdExtension(name.trim());
                   const folder = folders.find((f) => f.id === file.folder_id) ?? null;
                   const path = `${folder?.path ? `${folder.path}/` : ''}${nextName}`;
-                  if (files.some((f) => f.id !== file.id && f.path === path)) return dialog.alert('Duplicate path', 'Another file already uses this path.');
+                  if (hasDuplicateInFolder(folder?.id ?? null, nextName, file.id)) return dialog.alert('Duplicate path', 'Another file already uses this path.');
                   await updateFile(file.id, { name: nextName, path });
                   await refresh();
                 }}><Pencil size={14} /></button>
@@ -136,7 +143,7 @@ export function FileList({ openTemplatePicker }: { openTemplatePicker: () => voi
                   if (!name || !workspace) return;
                   const nextName = ensureMdExtension(name.trim());
                   const folder = folders.find((f) => f.id === file.folder_id) ?? null;
-                  const duplicate = files.some((f) => f.path === `${folder?.path ? `${folder.path}/` : ''}${nextName}`);
+                  const duplicate = hasDuplicateInFolder(folder?.id ?? null, nextName);
                   if (duplicate) return dialog.alert('Duplicate file', 'A file with this name already exists in this folder.');
                   await createFile({ workspaceId: workspace.id, folderId: folder?.id ?? null, folderPath: folder?.path ?? null, name: nextName, content: file.content, isTemplate: file.is_template });
                   await refresh();
@@ -179,7 +186,7 @@ export function FileList({ openTemplatePicker }: { openTemplatePicker: () => voi
                 onClick={async () => {
                   const dest = folders.find((f) => f.id === moveFolderId) ?? null;
                   const path = `${dest?.path ? `${dest.path}/` : ''}${moveFile.name}`;
-                  if (files.some((f) => f.id !== moveFile.id && f.path === path)) {
+                  if (hasDuplicateInFolder(dest?.id ?? null, moveFile.name, moveFile.id)) {
                     await dialog.alert('Duplicate path', 'Another file already uses this path.');
                     return;
                   }
