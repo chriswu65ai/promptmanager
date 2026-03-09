@@ -72,6 +72,13 @@ function neutralizeShortSetextUnderlines(markdown: string): string {
   return lines.join('\n');
 }
 
+function neutralizeStandaloneShortHyphenLines(markdown: string): string {
+  return markdown
+    .split('\n')
+    .map((line) => (/^\s*-{1,2}\s*$/.test(line) ? line.replace(/-/g, '\\-') : line))
+    .join('\n');
+}
+
 const markdownComponents: Components = {
   hr() {
     return <hr />;
@@ -168,7 +175,7 @@ export function MarkdownPreview({ content }: Props) {
           <hr key={`hr-${index}`} />
         ) : (
           <ReactMarkdown key={`md-${index}`} components={markdownComponents}>
-            {neutralizeShortSetextUnderlines(chunk.content)}
+            {neutralizeStandaloneShortHyphenLines(neutralizeShortSetextUnderlines(chunk.content))}
           </ReactMarkdown>
         ),
       )}
