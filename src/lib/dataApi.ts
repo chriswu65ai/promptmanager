@@ -49,3 +49,7 @@ export async function deleteFile(fileId: string) {
 export async function deleteFolder(folderId: string) {
   return supabase.from('folders').delete().eq('id', folderId);
 }
+
+export async function initializeStarterWorkspace() {
+  return supabase.rpc('initialize_starter_workspace');
+}

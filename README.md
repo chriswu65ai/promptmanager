@@ -48,9 +48,19 @@ npm run dev
 2. In SQL editor run migration:
    - `supabase/migrations/202603080001_init.sql`
 3. Enable email auth (magic link).
-4. (Optional) seed starter data:
-   - Replace `USER_ID` in `supabase/seed/seed.sql`
-   - Run the seed SQL.
+4. Starter content bootstrap:
+   - Run migration `supabase/migrations/202603090001_initialize_starter_workspace.sql` to install `public.initialize_starter_workspace()`.
+   - Optionally run `supabase/seed/seed.sql`, which now just calls the same function for the authenticated user.
+
+
+## Starter bootstrap idempotency
+
+`public.initialize_starter_workspace()` is safe to rerun:
+- It creates at most one workspace per user (`workspaces.owner_id` unique index + `on conflict do nothing`).
+- Starter folders are inserted with `on conflict (workspace_id, path) do nothing`.
+- Starter files are inserted with `on conflict (workspace_id, path) do nothing`.
+
+The client calls this RPC only when no workspace exists in `usePromptStore.bootstrap`, so first-run accounts are initialized once automatically.
 
 ## Deploy (Vercel)
 
@@ -64,7 +74,7 @@ npm run dev
 ## Core implemented flows
 
 - Magic-link sign-in via Supabase Auth
-- Workspace bootstrap (auto-create first workspace)
+- Workspace bootstrap via `initialize_starter_workspace()` on first run
 - Folder tree with create/delete (with non-empty guard)
 - File list with create/delete
 - Global search by filename and content
