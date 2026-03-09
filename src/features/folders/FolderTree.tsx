@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight, ChevronsDownUp, ChevronsUpDown, Download, FolderPlus, PanelLeftClose, PanelLeftOpen, Pencil, Tag, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, ChevronsDownUp, ChevronsUpDown, Download, FolderPlus, PanelLeftClose, PanelLeftOpen, Pencil, Settings, Tag, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { createFolder, deleteFolder } from '../../lib/dataApi';
 import { supabase } from '../../lib/supabase';
@@ -15,6 +15,16 @@ export function FolderTree({ collapsed, onToggleCollapsed }: { collapsed: boolea
   const dialog = useDialog();
   const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set());
   const [tagsCollapsed, setTagsCollapsed] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+
+  const exportAllFiles = async () => {
+    if (!workspace) return;
+    if (files.length === 0) {
+      await dialog.alert('Nothing to export', 'Create at least one prompt file before exporting.');
+      return;
+    }
+    await exportWorkspaceMarkdownZip(workspace, files);
+  };
 
 
   const childrenByParent = useMemo(() => {
@@ -90,7 +100,7 @@ export function FolderTree({ collapsed, onToggleCollapsed }: { collapsed: boolea
 
   if (collapsed) {
     return (
-      <div className="flex items-center justify-center py-2">
+      <div className="flex h-full flex-col items-center py-2">
         <button
           className="rounded-md p-1.5 text-slate-600 hover:bg-slate-100"
           onClick={onToggleCollapsed}
@@ -99,6 +109,16 @@ export function FolderTree({ collapsed, onToggleCollapsed }: { collapsed: boolea
         >
           <PanelLeftOpen size={16} />
         </button>
+        <div className="mt-auto border-t border-slate-200 pt-2">
+          <button
+            className="rounded-md p-1.5 text-slate-600 hover:bg-slate-100"
+            onClick={() => setSettingsOpen(true)}
+            aria-label="Open settings"
+            title="Settings"
+          >
+            <Settings size={16} />
+          </button>
+        </div>
       </div>
     );
   }
@@ -257,18 +277,33 @@ export function FolderTree({ collapsed, onToggleCollapsed }: { collapsed: boolea
       <div className="border-t border-slate-200 p-2">
         <button
           className="flex w-full items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium hover:bg-slate-50"
-          onClick={async () => {
-            if (!workspace) return;
-            if (files.length === 0) {
-              await dialog.alert('Nothing to export', 'Create at least one prompt file before exporting.');
-              return;
-            }
-            await exportWorkspaceMarkdownZip(workspace, files);
-          }}
+          onClick={() => setSettingsOpen(true)}
         >
-          <Download size={16} /> Export All
+          <Settings size={16} /> Settings
         </button>
       </div>
+
+      {settingsOpen && (
+        <div className="fixed inset-0 z-30 flex items-end justify-center bg-slate-900/30 p-0 md:items-center md:p-6">
+          <div className="grid h-[50vh] w-full max-w-3xl grid-cols-1 overflow-hidden rounded-t-2xl bg-white md:h-[45vh] md:rounded-2xl">
+            <div className="flex min-h-0 flex-col">
+              <div className="flex items-center justify-between border-b border-slate-200 px-4 py-2">
+                <h4 className="text-sm font-semibold">Settings</h4>
+                <button onClick={() => setSettingsOpen(false)} className="text-sm text-slate-500">Close</button>
+              </div>
+              <div className="flex-1 space-y-3 overflow-y-auto px-5 py-4">
+                <p className="text-sm text-slate-600">Workspace</p>
+                <button
+                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium hover:bg-slate-50"
+                  onClick={exportAllFiles}
+                >
+                  <Download size={16} /> Export All
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
