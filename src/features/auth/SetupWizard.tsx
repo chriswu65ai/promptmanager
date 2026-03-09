@@ -43,7 +43,7 @@ export function SetupWizard({ onReady }: Props) {
       return;
     }
 
-    setStatus('Connection succeeded. Continue to bootstrap starter data.');
+    setStatus('Connection succeeded. Continue to initialize your workspace.');
     setChecking(false);
     setStep(4);
   };
@@ -52,9 +52,9 @@ export function SetupWizard({ onReady }: Props) {
     setBootstrapping(true);
     const { error } = await initializeStarterWorkspace();
     if (error) {
-      setStatus(`Bootstrap check: ${error.message}. This can be run automatically after sign-in.`);
+      setStatus(`Initialization check: ${error.message}. This can be run automatically after sign-in.`);
     } else {
-      setStatus('Starter workspace bootstrap finished successfully.');
+      setStatus('Workspace initialization finished successfully.');
     }
     setBootstrapping(false);
   };
@@ -72,7 +72,7 @@ export function SetupWizard({ onReady }: Props) {
         </div>
 
         <ol className="grid gap-2 text-sm md:grid-cols-4">
-          {['Create project', 'Paste credentials', 'Validate', 'Bootstrap data'].map((label, index) => {
+          {['Create project', 'Paste credentials', 'Validate', 'Initialize workspace'].map((label, index) => {
             const active = step === index + 1;
             return (
               <li key={label} className={`rounded border px-3 py-2 ${active ? 'border-slate-900 bg-slate-100' : 'border-slate-200'}`}>
@@ -140,16 +140,16 @@ export function SetupWizard({ onReady }: Props) {
             <div className="flex gap-2">
               <button className="rounded border border-slate-300 px-4 py-2 text-sm" onClick={() => setStep(2)}>Back</button>
               <button disabled={checking} className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60" onClick={validateConnection}>Validate connection</button>
-              <button className="rounded border border-slate-300 px-4 py-2 text-sm" onClick={() => setStep(4)}>Skip to bootstrap</button>
+              <button className="rounded border border-slate-300 px-4 py-2 text-sm" onClick={() => setStep(4)}>Skip to initialize</button>
             </div>
           </div>
         )}
 
         {step === 4 && (
           <div className="space-y-3 text-sm text-slate-700">
-            <p>Run starter bootstrap now (recommended). If you are not signed in yet, this may fail and will run automatically after sign-in.</p>
+            <p>Run workspace initialization now (recommended). This creates an empty workspace. If you are not signed in yet, this may fail and will run automatically after sign-in.</p>
             <div className="flex gap-2">
-              <button disabled={bootstrapping} className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60" onClick={runBootstrap}>Run bootstrap</button>
+              <button disabled={bootstrapping} className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60" onClick={runBootstrap}>Initialize workspace</button>
               <button className="rounded border border-slate-300 px-4 py-2 text-sm" onClick={finish}>Continue to sign-in</button>
               <button className="rounded border border-rose-300 px-4 py-2 text-sm text-rose-700" onClick={clearRuntimeSupabaseConfig}>Reset config</button>
             </div>
