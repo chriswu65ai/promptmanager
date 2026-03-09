@@ -45,7 +45,7 @@ export function TemplateModal({ open, onClose }: { open: boolean; onClose: () =>
             <h4 className="text-sm font-semibold">Preview</h4>
             <button onClick={onClose} className="text-sm text-slate-500">Close</button>
           </div>
-          <div className="prose max-w-none flex-1 overflow-y-auto p-4">
+          <div className="markdown-preview max-w-none flex-1 overflow-y-auto bg-white px-5 pb-5 pt-2 text-sm">
             <MarkdownPreview content={selectedBody} />
           </div>
           <div className="border-t border-slate-200 p-3">

@@ -58,6 +58,8 @@ export function MarkdownPreview({ content }: Props) {
       components={{
         p({ children }) {
           const text = flattenText(children);
+          if (text.trim() === '') return <p>{'\u00a0'}</p>;
+
           const table = parseTable(text);
           if (!table) return <p>{children}</p>;
 
