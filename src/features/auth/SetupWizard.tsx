@@ -8,11 +8,27 @@ import {
 } from '../../lib/supabase';
 import { initializeStarterWorkspace } from '../../lib/dataApi';
 import { checkSchemaHealth, toUserFacingBootstrapError } from '../../lib/schemaHealth';
-import { extractProjectRef, installSchemaWithAccessToken } from '../../lib/schemaInstaller';
+import { getSupabaseProvisioningStatus, startSupabaseProvisioning } from '../../lib/setupApi';
 
 type Props = {
   onReady: () => void;
 };
+
+
+function extractProjectRef(url: string): string | null {
+  const trimmed = url.trim();
+  if (!trimmed) return null;
+  try {
+    const parsed = new URL(trimmed);
+    const host = parsed.hostname;
+    if (!host.endsWith('.supabase.co')) return null;
+    return host.split('.')[0] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+const allowDevPatMode = import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEV_PAT_SETUP === 'true';
 
 export function SetupWizard({ onReady }: Props) {
   const initialState = getSupabaseSetupState();
@@ -78,17 +94,45 @@ export function SetupWizard({ onReady }: Props) {
       setStatus('Could not detect project ID from URL. Expected format: https://<project-ref>.supabase.co');
       return;
     }
-    if (!accessToken.trim()) {
-      setStatus('Enter a Supabase Personal Access Token to install schema without CLI.');
+
+    if (allowDevPatMode && !accessToken.trim()) {
+      setStatus('Dev mode requires a PAT for backend token exchange when no server PAT is configured.');
       return;
     }
 
     setInstallingSchema(true);
-    setStatus('Installing database schema via Supabase Management API...');
+    setStatus('Starting secure backend provisioning...');
 
-    const { error } = await installSchemaWithAccessToken(projectRef, accessToken.trim());
-    if (error) {
-      setStatus(`Schema install failed: ${error}`);
+    try {
+      const started = await startSupabaseProvisioning({
+        projectUrl: url.trim(),
+        projectRef,
+        devAccessToken: allowDevPatMode ? accessToken.trim() : undefined,
+      });
+
+      let isComplete = false;
+      while (!isComplete) {
+        const current = await getSupabaseProvisioningStatus(started.operationId);
+        setStatus(current.message);
+
+        if (current.status === 'failed') {
+          throw new Error(current.message);
+        }
+
+        if (current.status === 'succeeded') {
+          if (current.result?.projectUrl && current.result.anonKey) {
+            saveRuntimeSupabaseConfig({ url: current.result.projectUrl, anonKey: current.result.anonKey });
+            setUrl(current.result.projectUrl);
+            setAnonKey(current.result.anonKey);
+          }
+          isComplete = true;
+          break;
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+      }
+    } catch (error) {
+      setStatus(`Schema install failed: ${error instanceof Error ? error.message : 'Unknown error.'}`);
       setInstallingSchema(false);
       return;
     }
@@ -194,24 +238,28 @@ export function SetupWizard({ onReady }: Props) {
           <div className="space-y-3 text-sm text-slate-700">
             <p>Run workspace initialization now (recommended). This creates an empty workspace.</p>
             <div className="rounded border border-slate-200 bg-slate-50 p-3">
-              <p className="mb-2 text-xs text-slate-600">No-CLI option: install schema from this page using your Supabase Personal Access Token. Project ref is auto-detected from the URL you entered.</p>
+              <p className="mb-2 text-xs text-slate-600">No-CLI option: this action calls a backend provisioning endpoint. The browser never receives the backend-managed PAT.</p>
               <p className="mb-2 text-xs text-slate-500">Detected project ref: <strong>{projectRef ?? 'not detected'}</strong></p>
-              <label className="block text-xs">
-                Supabase Personal Access Token
-                <input
-                  type="password"
-                  className="input mt-1"
-                  placeholder="sbp_..."
-                  value={accessToken}
-                  onChange={(e) => setAccessToken(e.target.value)}
-                />
-              </label>
+              {allowDevPatMode ? (
+                <label className="block text-xs">
+                  <span className="font-semibold text-amber-700">Dev-only override:</span> Supabase PAT (never returned to client)
+                  <input
+                    type="password"
+                    className="input mt-1"
+                    placeholder="sbp_..."
+                    value={accessToken}
+                    onChange={(e) => setAccessToken(e.target.value)}
+                  />
+                </label>
+              ) : (
+                <p className="text-xs text-slate-500">Hosted/prod mode: PAT input is disabled. Configure <code>SUPABASE_MANAGEMENT_PAT</code> on the backend.</p>
+              )}
               <button
                 disabled={installingSchema || !projectRef}
                 className="mt-2 rounded border border-slate-300 px-3 py-2 text-xs disabled:opacity-60"
                 onClick={installSchema}
               >
-                {installingSchema ? 'Installing schema...' : 'Install schema now (no CLI)'}
+                {installingSchema ? 'Installing schema...' : 'Install schema now (secure backend)'}
               </button>
             </div>
             <div className="flex gap-2">
